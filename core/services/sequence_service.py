@@ -1,5 +1,5 @@
 import zoneinfo
-from django.db import transaction
+from django.db import transaction, connection
 from django.utils import timezone
 from core.models import OrderDailySequence
 
@@ -11,10 +11,18 @@ def get_next_order_number() -> str:
     date_str = date_val.strftime("%Y%m%d")
 
     with transaction.atomic():
-        seq_obj, _ = OrderDailySequence.objects.select_for_update().get_or_create(
-            date=date_val,
-            defaults={"last_sequence": 0},
-        )
+        if connection.vendor == "postgresql":
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [f"seq_{date_str}"])
+
+        seq_obj = OrderDailySequence.objects.select_for_update().filter(date=date_val).first()
+        if not seq_obj:
+            seq_obj, _ = OrderDailySequence.objects.get_or_create(
+                date=date_val,
+                defaults={"last_sequence": 0},
+            )
+            seq_obj = OrderDailySequence.objects.select_for_update().get(date=date_val)
+
         seq_obj.last_sequence += 1
         seq_obj.save(update_fields=["last_sequence"])
         seq_num = seq_obj.last_sequence

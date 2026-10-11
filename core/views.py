@@ -15,7 +15,14 @@ from core.serializers import (
     OrderSerializer,
 )
 from core.services.inventory_service import update_inventory
-from core.services.order_service import create_draft_order
+from core.services.order_service import (
+    create_draft_order,
+    update_draft_order_items,
+    confirm_order,
+    dispatch_order,
+    deliver_order,
+    cancel_order,
+)
 from core.pagination import StandardResultsSetPagination
 
 
@@ -160,9 +167,38 @@ class OrderListCreateView(APIView):
 
 class OrderDetailView(APIView):
     def get(self, request, order_number):
-        order = Order.objects.prefetch_related("items").filter(order_number=order_number).first()
+        order = Order.objects.prefetch_related("items__product", "dealer").filter(order_number=order_number).first()
         if not order:
             raise NotFound(detail=f"Order '{order_number}' not found.")
+        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+
+    def put(self, request, order_number):
+        items = request.data.get("items")
+        order = update_draft_order_items(order_number, items)
+        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+
+
+class OrderConfirmView(APIView):
+    def post(self, request, order_number):
+        order = confirm_order(order_number)
+        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+
+
+class OrderDispatchView(APIView):
+    def post(self, request, order_number):
+        order = dispatch_order(order_number)
+        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+
+
+class OrderDeliverView(APIView):
+    def post(self, request, order_number):
+        order = deliver_order(order_number)
+        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+
+
+class OrderCancelView(APIView):
+    def post(self, request, order_number):
+        order = cancel_order(order_number)
         return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
 
 

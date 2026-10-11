@@ -1,8 +1,9 @@
 from decimal import Decimal, InvalidOperation
 from rest_framework import serializers
 
-from core.models import Product, Dealer, Order, OrderItem
+from core.models import Product, Dealer, Order, OrderItem, OrderStatus
 from core.exceptions import DuplicateError, ContractAPIException
+from core.services.pricing_service import calculate_line, calculate_order_totals
 
 
 class TwoDecimalField(serializers.DecimalField):
@@ -174,10 +175,10 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     dealer_id = serializers.IntegerField(source="dealer.id")
-    items = OrderItemSerializer(many=True, read_only=True)
-    subtotal = TwoDecimalField()
-    tax_total = TwoDecimalField()
-    grand_total = TwoDecimalField()
+    items = serializers.SerializerMethodField()
+    subtotal = serializers.SerializerMethodField()
+    tax_total = serializers.SerializerMethodField()
+    grand_total = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%S%z")
     updated_at = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%S%z")
 
@@ -194,3 +195,64 @@ class OrderSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    def _get_pricing_data(self, obj):
+        if hasattr(obj, "_cached_pricing_data"):
+            return obj._cached_pricing_data
+
+        if obj.status == OrderStatus.DRAFT:
+            lines = []
+            for item in obj.items.all():
+                current_price = item.product.price if (hasattr(item, "product") and item.product) else item.unit_price
+                line_calc = calculate_line(current_price, item.quantity)
+                lines.append({
+                    "sku": item.sku,
+                    "name": item.name,
+                    "quantity": item.quantity,
+                    "unit_price": f"{line_calc['unit_price']:.2f}",
+                    "line_subtotal": f"{line_calc['line_subtotal']:.2f}",
+                    "line_tax": f"{line_calc['line_tax']:.2f}",
+                    "line_total": f"{line_calc['line_total']:.2f}",
+                })
+            totals = calculate_order_totals([{
+                "line_subtotal": Decimal(l["line_subtotal"]),
+                "line_tax": Decimal(l["line_tax"]),
+            } for l in lines])
+            data = {
+                "items": lines,
+                "subtotal": f"{totals['subtotal']:.2f}",
+                "tax_total": f"{totals['tax_total']:.2f}",
+                "grand_total": f"{totals['grand_total']:.2f}",
+            }
+        else:
+            lines = []
+            for item in obj.items.all():
+                lines.append({
+                    "sku": item.sku,
+                    "name": item.name,
+                    "quantity": item.quantity,
+                    "unit_price": f"{Decimal(str(item.unit_price)):.2f}",
+                    "line_subtotal": f"{Decimal(str(item.line_subtotal)):.2f}",
+                    "line_tax": f"{Decimal(str(item.line_tax)):.2f}",
+                    "line_total": f"{Decimal(str(item.line_total)):.2f}",
+                })
+            data = {
+                "items": lines,
+                "subtotal": f"{Decimal(str(obj.subtotal)):.2f}",
+                "tax_total": f"{Decimal(str(obj.tax_total)):.2f}",
+                "grand_total": f"{Decimal(str(obj.grand_total)):.2f}",
+            }
+        obj._cached_pricing_data = data
+        return data
+
+    def get_items(self, obj):
+        return self._get_pricing_data(obj)["items"]
+
+    def get_subtotal(self, obj):
+        return self._get_pricing_data(obj)["subtotal"]
+
+    def get_tax_total(self, obj):
+        return self._get_pricing_data(obj)["tax_total"]
+
+    def get_grand_total(self, obj):
+        return self._get_pricing_data(obj)["grand_total"]
