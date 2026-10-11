@@ -196,3 +196,20 @@ class AssistantChatView(APIView):
 
         return Response(result, status=status.HTTP_200_OK)
 
+
+class ForecastDetailView(APIView):
+    def get(self, request, sku):
+        from forecasting.forecast_service import get_sku_forecast
+        data = get_sku_forecast(sku)
+        if not data:
+            raise NotFound(detail=f"Forecast for SKU '{sku}' not found.")
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class ReorderSuggestionsView(APIView):
+    def get(self, request):
+        from forecasting.reorder import calculate_reorder_suggestions
+        results = calculate_reorder_suggestions()
+        return Response({"results": results}, status=status.HTTP_200_OK)
+
+

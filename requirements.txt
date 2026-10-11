@@ -8,3 +8,7 @@ requests>=2.31
 groq>=0.11.0
 sentence-transformers>=3.0.0
 chromadb>=0.5.0
+
+# Forecasting & ML
+pandas>=2.1.0
+scikit-learn>=1.4.0
