@@ -17,4 +17,5 @@ urlpatterns = [
     path("assistant/chat/", views.AssistantChatView.as_view(), name="assistant-chat"),
     path("forecast/<str:sku>/", views.ForecastDetailView.as_view(), name="forecast-detail"),
     path("reorder-suggestions/", views.ReorderSuggestionsView.as_view(), name="reorder-suggestions"),
+    path("sync/supplier/", views.SupplierSyncView.as_view(), name="supplier-sync"),
 ]

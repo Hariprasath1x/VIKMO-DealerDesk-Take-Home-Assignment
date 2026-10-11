@@ -249,3 +249,10 @@ class ReorderSuggestionsView(APIView):
         return Response({"results": results}, status=status.HTTP_200_OK)
 
 
+class SupplierSyncView(APIView):
+    def post(self, request):
+        from core.services.supplier_sync_service import run_supplier_sync
+        result = run_supplier_sync()
+        return Response(result, status=status.HTTP_200_OK)
+
+
