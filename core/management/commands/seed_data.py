@@ -30,6 +30,14 @@ class Command(BaseCommand):
         self.stdout.write(f"Seeding dealers from {dealers_path}...")
         self.seed_dealers(dealers_path)
 
+        self.stdout.write("Syncing product vector index in ChromaDB...")
+        try:
+            from core.assistant.vector_store import index_all_products
+            res = index_all_products()
+            self.stdout.write(f"Vector index synced: {res['indexed']} indexed, {res['pruned']} pruned.")
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f"Vector indexing skipped/deferred: {e}"))
+
         self.stdout.write(self.style.SUCCESS("Data seeding completed successfully."))
 
     def seed_catalogue(self, path):

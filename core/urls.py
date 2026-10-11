@@ -10,4 +10,5 @@ urlpatterns = [
     path("dealers/<int:pk>/", views.DealerDetailView.as_view(), name="dealer-detail"),
     path("orders/", views.OrderListCreateView.as_view(), name="order-list-create"),
     path("orders/<str:order_number>/", views.OrderDetailView.as_view(), name="order-detail"),
+    path("assistant/chat/", views.AssistantChatView.as_view(), name="assistant-chat"),
 ]

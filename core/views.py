@@ -164,3 +164,35 @@ class OrderDetailView(APIView):
         if not order:
             raise NotFound(detail=f"Order '{order_number}' not found.")
         return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+
+
+class AssistantChatView(APIView):
+    def post(self, request):
+        session_id = request.data.get("session_id")
+        dealer_id = request.data.get("dealer_id")
+        message = request.data.get("message")
+
+        from core.exceptions import ContractAPIException
+        details = []
+        if not session_id or not isinstance(session_id, str):
+            details.append("session_id is required and must be a string.")
+        if dealer_id is None or not isinstance(dealer_id, int):
+            details.append("dealer_id is required and must be an integer.")
+        if not message or not isinstance(message, str):
+            details.append("message is required and must be a non-empty string.")
+
+        if details:
+            raise ContractAPIException(
+                message="Invalid assistant chat request.",
+                details=details,
+            )
+
+        from core.assistant.agent import run_assistant_turn
+        result = run_assistant_turn(
+            session_id=str(session_id).strip(),
+            dealer_id=int(dealer_id),
+            user_message=str(message).strip(),
+        )
+
+        return Response(result, status=status.HTTP_200_OK)
+

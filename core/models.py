@@ -144,3 +144,29 @@ class IdempotencyRecord(models.Model):
     request_hash = models.CharField(max_length=64)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class ChatSession(models.Model):
+    session_id = models.CharField(max_length=128, primary_key=True)
+    dealer = models.ForeignKey(Dealer, on_delete=models.CASCADE, related_name="chat_sessions")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"Session {self.session_id} (Dealer {self.dealer_id})"
+
+
+class ChatMessage(models.Model):
+    session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name="messages")
+    role = models.CharField(max_length=20)  # user, assistant, system, tool
+    content = models.TextField(blank=True, default="")
+    tool_calls = models.JSONField(blank=True, null=True)
+    tool_call_id = models.CharField(max_length=128, blank=True, default="")
+    name = models.CharField(max_length=64, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
