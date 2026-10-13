@@ -5,8 +5,10 @@ __pycache__/
 venv/
 env/
 node_modules/
+frontend/dist/
 .idea/
 .vscode/
 *.sqlite3
 .DS_Store
 chroma_db/
+.pytest_cache/

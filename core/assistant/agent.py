@@ -24,7 +24,7 @@ CRITICAL OPERATIONAL RULES:
 """
 
 PRIMARY_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
-FALLBACK_MODEL = "llama-3.3-70b-versatile"
+FALLBACK_MODEL = "openai/gpt-oss-20b"
 
 
 def get_groq_client():
@@ -116,9 +116,15 @@ def run_assistant_turn(session_id: str, dealer_id: int, user_message: str) -> di
                     )
                 except Exception as inner_e:
                     logger.error(f"Fallback model also failed: {inner_e}")
-                    return _fallback_local_agent(user_message, dealer_id, turn_tool_calls, actions)
+                    fallback_res = _fallback_local_agent(user_message, dealer_id, turn_tool_calls, actions)
+                    ChatMessage.objects.create(session=session, role="user", content=user_message)
+                    ChatMessage.objects.create(session=session, role="assistant", content=fallback_res["reply"])
+                    return fallback_res
             else:
-                return _fallback_local_agent(user_message, dealer_id, turn_tool_calls, actions)
+                fallback_res = _fallback_local_agent(user_message, dealer_id, turn_tool_calls, actions)
+                ChatMessage.objects.create(session=session, role="user", content=user_message)
+                ChatMessage.objects.create(session=session, role="assistant", content=fallback_res["reply"])
+                return fallback_res
 
         message = response.choices[0].message
         tool_call_requests = getattr(message, "tool_calls", None)
